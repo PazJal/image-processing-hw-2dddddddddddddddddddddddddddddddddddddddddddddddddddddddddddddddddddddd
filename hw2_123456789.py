@@ -37,37 +37,40 @@ test = np.array(
 def find_transform(pointset1, pointset2):
 
     # create the pseudo inverse from the pointsets
-    pinv = get_psuedo_invert(pointset2,pointset1)
+    pinv = get_psuedo_invert(pointset1,pointset2)
 
     # create a column vector from the target pointset. 
-    vec = pointset2.reshape((16,1))
+    vec = pointset1.reshape((16,1))
 
     # caculate the coefficient matrix. 
     coefficentMatrix = np.matmul(pinv, vec)
 
+    #manually create the transformation matrix:
+    transformation_matrix = np.zeros((3,3))
+
+    transformation_matrix[0][0] = coefficentMatrix[0]
+    transformation_matrix[0][1] = coefficentMatrix[1]
+    transformation_matrix[0][2] = coefficentMatrix[4]
+    transformation_matrix[1][0] = coefficentMatrix[2]
+    transformation_matrix[1][1] = coefficentMatrix[3]
+    transformation_matrix[1][2] = coefficentMatrix[5]
+    transformation_matrix[2][0] = coefficentMatrix[6]
+    transformation_matrix[2][1] = coefficentMatrix[7]
+    transformation_matrix[2][2] = 1
+
+
     # rearrage the coefficients into a matrix. 
-    transformation_matrix = np.resize(coefficentMatrix,(3,3))
+    #transformation_matrix = np.resize(coefficentMatrix,(3,3))
 
     # setting the laset entry to 1. 
     transformation_matrix[2][2] = 1
 
-
-    # np.array(coefficentMatrix)
-    #result = np.ones((3,3))
-    # c = 0 
-    # r = 0
-    # for r in range (0,3):
-    #     for c in range(0,3):
-    #         if (r * 3 + c > 7):
-    #             result[2][2] = 1
-    #             break
-    #         result[r][c] = coefficentMatrix[r * 3 + c]
     return transformation_matrix
 
 
-def trasnform_image(image, T):
+def transform_image(image, T):
     #Get width and height.
-    (image_width, image_height) = image.shape
+    (image_height, image_width) = image.shape
 
     #Initialize new image
     new_image = np.zeros(image.shape)
@@ -116,14 +119,15 @@ def trasnform_image(image, T):
     count =0
     tInverted = np.linalg.inv(T)
     print(T)
-    print(tInverted)
+    #print(tInverted)
 
-    for r in range(0,image_width):
-        for c in range(0, image_height):
+    for w in range(0,image_width):
+        for h in range(0, image_height):
             #print(f"{r} - {c}")
-            sourceVector = np.matmul(tInverted,np.array([r, c, 1 ]).transpose())
-            # sourceVector = np.matmul(T,np.array([r, c, 1 ]).transpose())
+            # sourceVector = np.matmul(tInverted,np.array([r, c, 1 ]).transpose())
+            sourceVector = np.matmul(T,np.array([w, h, 1 ]).transpose())
             #print(f"{sourceVector[2][0][0]}")
+            
             normSourceVector = (sourceVector / sourceVector[2])
             x = normSourceVector.item(0)
             y = normSourceVector.item(1)
@@ -134,21 +138,28 @@ def trasnform_image(image, T):
                 xMax = x
 
             if ySrc >= image_height or ySrc < 0:
-                new_image[r][c] = 0
-                #ySrc = c
-            elif xSrc >= image_width or ySrc < 0:
-                new_image[r][c] = 0
-                #xSrc = r
+                new_image[h][w] = image[h][w]
+                # ySrc = h
+            elif xSrc >= image_width or xSrc < 0:
+                new_image[h][w] = image[h][w]
+                # xSrc = w
             else:
-                new_image[r][c] = image[xSrc][ySrc]
+                new_image[h][w] = image[ySrc][xSrc]
                 count+=1
     return new_image
 
 
 def create_wormhole(im, T, iter=5):
-    (image_width, image_height) = im.shape
-    new_image = trasnform_image(im, T)
-    return new_image
+    new_image = transform_image(im, T)
+    #can this be done recuresively?
+    if iter == 1 :
+        return new_image
+    else: 
+        return create_wormhole(new_image, T / 2, iter - 1)
+
+    # new_image = transform_image(im, T)
+    # new_new_image = transform_image(new_image,T / 2)
+    # return new_new_image
 
 def get_psuedo_invert(target_points, source_points):
     
