@@ -58,10 +58,6 @@ def find_transform(pointset1, pointset2):
     transformation_matrix[2][1] = coefficentMatrix[7]
     transformation_matrix[2][2] = 1
 
-
-    # rearrage the coefficients into a matrix. 
-    #transformation_matrix = np.resize(coefficentMatrix,(3,3))
-
     # setting the laset entry to 1. 
     transformation_matrix[2][2] = 1
 
@@ -74,92 +70,41 @@ def transform_image(image, T):
 
     #Initialize new image
     new_image = np.zeros(image.shape)
-    
-    # create a matrix representing the indices of columns in the first row
-    col_indices = np.arange(image_width)
-
-    # create an array representing the row index
-    row_index = np.zeros(image_width)
-
-    # create an array for the homogenoues coordinate
-    third = np.ones(image_width)
-    
-    # construct a matrix 3xWidth
-    row_coordinates = np.array([row_index, col_indices, third]).transpose()
-
-    #Multiply by transformation to get the new coordinates
-    new_coordinates = np.around(np.matmul(row_coordinates, T))
-    
-    # for row_number in range(1, image_height):
-
-    #     # create a vector with the current row number
-    #     row_index = np.ones(image_width) * row_number
-
-    #     # update the matrix for the current row
-    #     row_coordinates = np.array([row_index, col_indices, third]).transpose()
-        
-    #      #Multiply by transformation to get the new coordinates
-    #     new_coordinates = np.around(np.matmul(row_coordinates, T))
-
-    #     # update new image based on the transformation
-    #     for col_number in range(0,image_width):
-
-    #         # Try using the regular transfomation instead of the inverse:
-
-    
-    r = 0
-    c = 0
-
-     
-
-    xMax = 0
-    yMax = 0
-    xMin = 0 
-    yMin = 0 
-    count =0
-    tInverted = np.linalg.inv(T)
-    print(T)
-    #print(tInverted)
 
     for w in range(0,image_width):
         for h in range(0, image_height):
-            #print(f"{r} - {c}")
-            # sourceVector = np.matmul(tInverted,np.array([r, c, 1 ]).transpose())
+            # create a vector for the coordinates
             sourceVector = np.matmul(T,np.array([w, h, 1 ]).transpose())
-            #print(f"{sourceVector[2][0][0]}")
             
+            # normalize the vector
             normSourceVector = (sourceVector / sourceVector[2])
+            
+            # destructre the coordinates
             x = normSourceVector.item(0)
             y = normSourceVector.item(1)
             xSrc = int(round(x))
             ySrc = int(round(y))
             
-            if(x > xMax):
-                xMax = x
-
+            # handle source coordinates that are not in bound
             if ySrc >= image_height or ySrc < 0:
                 new_image[h][w] = image[h][w]
-                # ySrc = h
             elif xSrc >= image_width or xSrc < 0:
                 new_image[h][w] = image[h][w]
-                # xSrc = w
             else:
                 new_image[h][w] = image[ySrc][xSrc]
-                count+=1
+
     return new_image
 
 
 def create_wormhole(im, T, iter=5):
+    # Transform the image
     new_image = transform_image(im, T)
-    #can this be done recuresively?
+
+    # recurse if needed
     if iter == 1 :
         return new_image
     else: 
         return create_wormhole(new_image, T / 2, iter - 1)
-
-    # new_image = transform_image(im, T)
-    # new_new_image = transform_image(new_image,T / 2)
-    # return new_new_image
 
 def get_psuedo_invert(target_points, source_points):
     
@@ -172,6 +117,7 @@ def get_psuedo_invert(target_points, source_points):
     # build two rows per point. 
     for sPoint,tPoint in zip(source_points,target_points):
 
+        # destructre the coordinates
         x = sPoint[0]
         y = sPoint[1]
         xTag = tPoint[0]
@@ -182,11 +128,12 @@ def get_psuedo_invert(target_points, source_points):
 
         # build second row
         t[2 * r + 1] = np.array([0, 0, x, y, 0, 1, -x *yTag, -y * yTag])
+        
         r += 1
     
+    # destructre the matrix computation
     mul = np.matmul(t.transpose(),  t)
     invers = np.linalg.inv(mul)
     pinv = np.matmul( invers , t.transpose())
-
 
     return pinv
